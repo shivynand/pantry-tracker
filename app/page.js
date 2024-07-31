@@ -26,7 +26,7 @@ export default function Home() {
   // Add item to database
   const addItem = async (e) => {
     e.preventDefault();
-    if (newItem.name !== "" && newItem.quantity !== "") {
+    if (newItem.name !== "" && (newItem.quantity !== "" &&parseInt(newItem.quantity) > 0)) {
       // setItems([...items, newItem]);
       await addDoc(collection(db, "items"), {
         name: newItem.name.trim(),
@@ -74,7 +74,7 @@ export default function Home() {
             <input
               value={newItem.name}
               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              className="col-span-3 p-3 border"
+              className="col-span-3 p-3 border rounded-full"
               type="text"
               placeholder="Enter Item"
             ></input>
@@ -83,13 +83,13 @@ export default function Home() {
               onChange={(e) =>
                 setNewItem({ ...newItem, quantity: e.target.value })
               }
-              className="col-span-3 p-3 border mx-3"
+              className="col-span-2 p-3 border mx-3 rounded-full"
               type="number"
               placeholder="Enter quantity"
             ></input>
             <button
               onClick={addItem}
-              className="text-white bg-slate-800 hover:bg-slate-600 p-3 mt-2 text-xl"
+              className="text-white bg-slate-800 hover:bg-slate-600 p-3 rounded-full text-lg"
               type="submit"
             >
               Submit
@@ -97,7 +97,7 @@ export default function Home() {
           </form>
           <ul>
             {items.map((item, id) => (
-              <li key={id} className="my-4 w-full flex justify-between bg-blue-600">
+              <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
                 <div className="p-4 w-full flex justify-between">
                   <span className="capitalise">{item.name}</span>
                   <span>{item.quantity}</span>
