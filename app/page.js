@@ -286,7 +286,7 @@ export default function Home() {
             " "
           ) : (
             <div className="flex justify-between p-3">
-              <span>Total: </span>
+              <span>Total Stock: </span>
               <span>{total}</span>
             </div>
           )}
