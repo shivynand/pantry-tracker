@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import {
   collection,
   addDoc,
@@ -9,33 +8,53 @@ import {
   query,
   onSnapshot,
   deleteDoc,
-  doc
+  doc,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
+import stringSimilarity from "string-similarity";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
-  const [items, setItems] = useState([
-    // { name: "Eggs", quantity: 4 },
-    // { name: "Chicken", quantity: 2 },
-    // { name: "Chocolate", quantity: 7 },
-  ]);
+  const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({ name: "", quantity: "" });
-
-  const [total, setTotal] = useState(13);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [total, setTotal] = useState(0);
 
   // Add item to database
   const addItem = async (e) => {
     e.preventDefault();
     if (newItem.name !== "" && (newItem.quantity !== "" &&parseInt(newItem.quantity) > 0)) {
       // setItems([...items, newItem]);
-      await addDoc(collection(db, "items"), {
-        name: newItem.name.trim(),
-        quantity: newItem.quantity,
-      });
-      setNewItem({ name: "", quantity: "" });
-    }
-  };
+      const trimmedName = newItem.name.trim().toLowerCase();
 
+      // Check for similar item names
+      const similarItem = items.find(item => {
+        const similarity = 
+        stringSimilarity.compareTwoStrings(item.name.toLowerCase(), trimmedName);
+        return similarity > 0.7
+      });
+
+      if (similarItem) {
+        //Item already exists, update quantity instead
+        const updatedQuantity = parseInt(similarItem.quantity) + parseInt(newItem.quantity);
+        await updateDoc(doc(db, "items", similarItem.id), {
+          quantity: updatedQuantity.toString()
+        });
+        toast.info(`Updated quantity of "${similarItem.name}" instead of adding a new item.`)
+      } else {
+        await addDoc(collection(db, "items"), {
+          name: newItem.name.trim(),
+          quantity: newItem.quantity
+      })
+      toast.success('Item added successfully!')
+    }
+
+    setNewItem({name: "", quantity: ""});
+  };
+};
   // Read items from database
   useEffect(() => {
     const q = query(collection(db, "items"));
@@ -60,14 +79,44 @@ export default function Home() {
     });
   }, []);
 
+
+
+  //Handle search and filter items
+  const handleSearch = (e) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+
+    if (query.trim() === "") {
+      setFilteredItems([]);
+    } else {
+      const filtered = items.filter((item) => 
+      item.name.toLowerCase().includes(query))
+      setFilteredItems(filtered);
+    }
+  }
+
+  // Calculate total based on filtered items or all items
+  useEffect(() => {
+    const calculateTotal = () => {
+      const itemsToCalculate = searchQuery ? filteredItems : items;
+      const totalQuantity = itemsToCalculate.reduce(
+        (sum, item) => sum + parseFloat(item.quantity),
+        0
+      );
+      setTotal(totalQuantity);
+    };
+    calculateTotal();
+  }, [items, filteredItems, searchQuery]);
+
   // Delete items from database
   const deleteItem = async (id) => {
-    await deleteDoc(doc(db, 'items', id));
-  }
+    await deleteDoc(doc(db, "items", id));
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
+        <ToastContainer />
         <h1 className="text-4xl p-4 text-center">Pantry Tracker</h1>
         <div className="bg-blue-800 p-4 rounded-lg">
           <form className="grid grid-cols-6 items-center text-black">
@@ -76,7 +125,7 @@ export default function Home() {
               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
               className="col-span-3 p-3 border rounded-full"
               type="text"
-              placeholder="Enter Item"
+              placeholder="Add Item"
             ></input>
             <input
               value={newItem.quantity}
@@ -95,23 +144,52 @@ export default function Home() {
               Submit
             </button>
           </form>
+          <input
+          value = {searchQuery}
+          onChange = {handleSearch}
+          className= "w-full p-3 border rounded-full my-4 text-black"
+          type="text"
+          placeholder="Search Item"
+          >
+          </input>
           <ul>
-            {items.map((item, id) => (
-              <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
-                <div className="p-4 w-full flex justify-between">
-                  <span className="capitalise">{item.name}</span>
-                  <span>{item.quantity}</span>
-                </div>
-                <button
-                  onClick={() => deleteItem(item.id)}
-                  className="ml-8 border-l-2 border-blue-800 hover:bg-slate-900 w-16"
-                >
-                  X
-                </button>
-              </li>
-            ))}
+          {searchQuery ? (
+              filteredItems.length > 0 ? (
+                filteredItems.map((item, id) => (
+                  <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
+                    <div className="p-4 w-full flex justify-between">
+                      <span className="capitalize">{item.name}</span>
+                      <span>{item.quantity}</span>
+                    </div>
+                    <button
+                      onClick={() => deleteItem(item.id)}
+                      className="ml-8 border-l-2 border-blue-800 hover:bg-slate-900 w-16"
+                    >
+                      X
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <p className="text-white">Item does not exist</p>
+              )
+            ) : (
+              items.map((item, id) => (
+                <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
+                  <div className="p-4 w-full flex justify-between">
+                    <span className="capitalize">{item.name}</span>
+                    <span>{item.quantity}</span>
+                  </div>
+                  <button
+                    onClick={() => deleteItem(item.id)}
+                    className="ml-8 border-l-2 border-blue-800 hover:bg-slate-900 w-16"
+                  >
+                    X
+                  </button>
+                </li>
+              ))
+            )}
           </ul>
-          {items.length < 1 ? (
+          {(searchQuery ? filteredItems : items).length < 1 ? (
             " "
           ) : (
             <div className="flex justify-between p-3">
