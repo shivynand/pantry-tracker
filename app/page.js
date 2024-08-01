@@ -3,13 +3,12 @@ import React, { useState, useEffect } from "react";
 import {
   collection,
   addDoc,
-  getDoc,
-  querySnapshot,
   query,
   onSnapshot,
   deleteDoc,
   doc,
-  updateDoc
+  updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import stringSimilarity from "string-similarity";
@@ -26,35 +25,100 @@ export default function Home() {
   // Add item to database
   const addItem = async (e) => {
     e.preventDefault();
-    if (newItem.name !== "" && (newItem.quantity !== "" &&parseInt(newItem.quantity) > 0)) {
+    if (
+      newItem.name !== "" &&
+      newItem.quantity !== "" &&
+      parseInt(newItem.quantity) > 0
+    ) {
       // setItems([...items, newItem]);
       const trimmedName = newItem.name.trim().toLowerCase();
 
       // Check for similar item names
-      const similarItem = items.find(item => {
-        const similarity = 
-        stringSimilarity.compareTwoStrings(item.name.toLowerCase(), trimmedName);
-        return similarity > 0.7
+      const similarItem = items.find((item) => {
+        const similarity = stringSimilarity.compareTwoStrings(
+          item.name.toLowerCase(),
+          trimmedName
+        );
+        return similarity > 0.75;
       });
 
       if (similarItem) {
         //Item already exists, update quantity instead
-        const updatedQuantity = parseInt(similarItem.quantity) + parseInt(newItem.quantity);
+        const updatedQuantity =
+          parseInt(similarItem.quantity) + parseInt(newItem.quantity);
         await updateDoc(doc(db, "items", similarItem.id), {
-          quantity: updatedQuantity.toString()
+          quantity: updatedQuantity.toString(),
         });
-        toast.info(`Updated quantity of "${similarItem.name}" instead of adding a new item.`)
+        toast.info(
+          `Updated quantity of "${similarItem.name}" instead of adding a new item.`
+        );
       } else {
         await addDoc(collection(db, "items"), {
           name: newItem.name.trim(),
-          quantity: newItem.quantity
-      })
-      toast.success('Item added successfully!')
+          quantity: newItem.quantity,
+        });
+        toast.success("Item added successfully!");
+      }
+      setNewItem({ name: "", quantity: "" });
     }
-
-    setNewItem({name: "", quantity: ""});
   };
-};
+
+  const incrementItem = async (id) => {
+    const itemRef = doc(db, "items", id);
+    try {
+      const docSnap = await getDoc(itemRef);
+      if (docSnap.exists()) {
+        const currentQuantity = parseInt(docSnap.data().quantity);
+        const newQuantity = currentQuantity + 1;
+        await updateDoc(itemRef, {
+          quantity: newQuantity.toString(),
+        });
+        setItems((prevItems) =>
+          prevItems.map((item) =>
+            item.id === id ? { ...item, quantity: newQuantity.toString() } : item
+          )
+        );
+        setFilteredItems((prevItems =>
+          prevItems.map((item) =>
+            item.id === id ? { ...item, quantity: newQuantity.toString() } : item)
+        ))
+      }
+    } catch (error) {
+      toast.error("Error updating item: " + error.message);
+    }
+  };
+  
+  const decrementItem = async (id) => {
+    const itemRef = doc(db, "items", id);
+    try {
+      const docSnap = await getDoc(itemRef);
+      if (docSnap.exists()) {
+        const currentQuantity = parseInt(docSnap.data().quantity);
+        if (currentQuantity > 1) {
+          const newQuantity = currentQuantity - 1;
+          await updateDoc(itemRef, {
+            quantity: newQuantity.toString(),
+          });
+          setItems((prevItems) =>
+            prevItems.map((item) =>
+              item.id === id ? { ...item, quantity: newQuantity.toString() } : item
+            )
+          );
+
+          setFilteredItems((prevItems =>
+            prevItems.map((item) =>
+              item.id === id ? { ...item, quantity: newQuantity.toString() } : item)
+          ))
+        } else {
+          toast.warn("Quantity cannot be less than 1");
+        }
+      }
+    } catch (error) {
+      toast.error("Error updating item: " + error.message);
+    }
+  };
+  
+
   // Read items from database
   useEffect(() => {
     const q = query(collection(db, "items"));
@@ -75,11 +139,9 @@ export default function Home() {
         setTotal(totalPrice);
       };
       calculateTotal();
-      return () => unsubscribe();
     });
+    return () => unsubscribe();
   }, []);
-
-
 
   //Handle search and filter items
   const handleSearch = (e) => {
@@ -89,11 +151,12 @@ export default function Home() {
     if (query.trim() === "") {
       setFilteredItems([]);
     } else {
-      const filtered = items.filter((item) => 
-      item.name.toLowerCase().includes(query))
+      const filtered = items.filter((item) =>
+        item.name.toLowerCase().includes(query)
+      );
       setFilteredItems(filtered);
     }
-  }
+  };
 
   // Calculate total based on filtered items or all items
   useEffect(() => {
@@ -145,26 +208,39 @@ export default function Home() {
             </button>
           </form>
           <input
-          value = {searchQuery}
-          onChange = {handleSearch}
-          className= "w-full p-3 border rounded-full my-4 text-black"
-          type="text"
-          placeholder="Search Item"
-          >
-          </input>
+            value={searchQuery}
+            onChange={handleSearch}
+            className="w-full p-3 border rounded-full my-4 text-black"
+            type="text"
+            placeholder="Search Item"
+          ></input>
           <ul>
-          {searchQuery ? (
+            {searchQuery ? (
               filteredItems.length > 0 ? (
                 filteredItems.map((item, id) => (
-                  <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
+                  <li
+                    key={id}
+                    className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600"
+                  >
                     <div className="p-4 w-full flex justify-between">
                       <span className="capitalize">{item.name}</span>
-                      <span>{item.quantity}</span>
+                      <span className="flex items-center">
+                        <button
+                          className="bg-slate-900 text-lg p-2 w-10 h-10 flex items-center justify-center rounded-lg"
+                          onClick={() => decrementItem(item.id)}
+                        >
+                          -
+                        </button>
+                        <div className="w-12 text-center">{item.quantity}</div>
+                        <button
+                          className="bg-slate-900 text-lg p-2 w-10 h-10 flex items-center justify-center rounded-lg"
+                          onClick={() => incrementItem(item.id)}
+                        >
+                          +
+                        </button>
+                      </span>
                     </div>
-                    <button
-                      onClick={() => deleteItem(item.id)}
-                      className="ml-8 border-l-2 border-blue-800 hover:bg-slate-900 w-16"
-                    >
+                    <button className="ml-8 border-l-2 border-blue-800 hover:bg-slate-900 w-16">
                       X
                     </button>
                   </li>
@@ -174,10 +250,27 @@ export default function Home() {
               )
             ) : (
               items.map((item, id) => (
-                <li key={id} className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600">
+                <li
+                  key={id}
+                  className="my-4 w-full flex justify-between bg-gradient-to-r from-blue-600 to-red-600"
+                >
                   <div className="p-4 w-full flex justify-between">
                     <span className="capitalize">{item.name}</span>
-                    <span>{item.quantity}</span>
+                    <span className="flex items-center">
+                      <button
+                        className="bg-slate-900 text-lg p-2 w-10 h-10 flex items-center justify-center rounded-lg"
+                        onClick={() => decrementItem(item.id)}
+                      >
+                        -
+                      </button>
+                      <div className="w-12 text-center">{item.quantity}</div>
+                      <button
+                        className="bg-slate-900 text-lg p-2 w-10 h-10 flex items-center justify-center rounded-lg"
+                        onClick={() => incrementItem(item.id)}
+                      >
+                        +
+                      </button>
+                    </span>
                   </div>
                   <button
                     onClick={() => deleteItem(item.id)}
