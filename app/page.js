@@ -75,19 +75,24 @@ export default function Home() {
         });
         setItems((prevItems) =>
           prevItems.map((item) =>
-            item.id === id ? { ...item, quantity: newQuantity.toString() } : item
+            item.id === id
+              ? { ...item, quantity: newQuantity.toString() }
+              : item
           )
         );
-        setFilteredItems((prevItems =>
+        setFilteredItems((prevItems) =>
           prevItems.map((item) =>
-            item.id === id ? { ...item, quantity: newQuantity.toString() } : item)
-        ))
+            item.id === id
+              ? { ...item, quantity: newQuantity.toString() }
+              : item
+          )
+        );
       }
     } catch (error) {
       toast.error("Error updating item: " + error.message);
     }
   };
-  
+
   const decrementItem = async (id) => {
     const itemRef = doc(db, "items", id);
     try {
@@ -101,14 +106,19 @@ export default function Home() {
           });
           setItems((prevItems) =>
             prevItems.map((item) =>
-              item.id === id ? { ...item, quantity: newQuantity.toString() } : item
+              item.id === id
+                ? { ...item, quantity: newQuantity.toString() }
+                : item
             )
           );
 
-          setFilteredItems((prevItems =>
+          setFilteredItems((prevItems) =>
             prevItems.map((item) =>
-              item.id === id ? { ...item, quantity: newQuantity.toString() } : item)
-          ))
+              item.id === id
+                ? { ...item, quantity: newQuantity.toString() }
+                : item
+            )
+          );
         } else {
           toast.warn("Quantity cannot be less than 1");
         }
@@ -117,7 +127,6 @@ export default function Home() {
       toast.error("Error updating item: " + error.message);
     }
   };
-  
 
   // Read items from database
   useEffect(() => {
