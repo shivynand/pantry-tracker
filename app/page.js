@@ -14,13 +14,66 @@ import { db } from "./firebase";
 import stringSimilarity from "string-similarity";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useAuth } from "./authContext";
+import { useRouter } from "next/navigation";
+import { SignOut } from "./auth";
 
 export default function Home() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  if (!user) {
+    router.push("/login");
+    return null; // Return null if there's no user
+  }
+  
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({ name: "", quantity: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredItems, setFilteredItems] = useState([]);
   const [total, setTotal] = useState(0);
+
+  const handleSignOut = async () => {
+    try {
+      await SignOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to sign out, please try again");
+    }
+  };
+
+  useEffect(() => {
+      const fetchUserData = async () => {
+        const q = query(collection(db, "users", user.uid, "items"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+          let itemsArr = [];
+
+          querySnapshot.forEach((doc) => {
+            itemsArr.push({ ...doc.data(), id: doc.id });
+          });
+          setItems(itemsArr);
+
+          const totalQuantity = itemsArr.reduce(
+            (sum, item) => sum + parseFloat(item.quantity),
+            0
+          );
+          setTotal(totalQuantity);
+        });
+
+        return unsubscribe;
+      };
+
+      const unsubscribe = fetchUserData();
+
+      return () => {
+        if (unsubscribe) unsubscribe;
+      };
+  }, [user, router, db]);
+
+  if (!user) {
+    return null;
+  }
 
   // Add item to database
   const addItem = async (e) => {
@@ -28,7 +81,8 @@ export default function Home() {
     if (
       newItem.name !== "" &&
       newItem.quantity !== "" &&
-      parseInt(newItem.quantity) > 0
+      parseInt(newItem.quantity) > 0 &&
+      user
     ) {
       // setItems([...items, newItem]);
       const trimmedName = newItem.name.trim().toLowerCase();
@@ -46,14 +100,14 @@ export default function Home() {
         //Item already exists, update quantity instead
         const updatedQuantity =
           parseInt(similarItem.quantity) + parseInt(newItem.quantity);
-        await updateDoc(doc(db, "items", similarItem.id), {
+        await updateDoc(doc(db, "users", user.uid, "items", similarItem.id), {
           quantity: updatedQuantity.toString(),
         });
         toast.info(
           `Updated quantity of "${similarItem.name}" instead of adding a new item.`
         );
       } else {
-        await addDoc(collection(db, "items"), {
+        await addDoc(collection(db, "users", user.uid, "items"), {
           name: newItem.name.trim(),
           quantity: newItem.quantity,
         });
@@ -64,7 +118,7 @@ export default function Home() {
   };
 
   const incrementItem = async (id) => {
-    const itemRef = doc(db, "items", id);
+    const itemRef = doc(db, "users", user.uid, "items", id);
     try {
       const docSnap = await getDoc(itemRef);
       if (docSnap.exists()) {
@@ -94,7 +148,7 @@ export default function Home() {
   };
 
   const decrementItem = async (id) => {
-    const itemRef = doc(db, "items", id);
+    const itemRef = doc(db, "users", user.uid, "items", id);
     try {
       const docSnap = await getDoc(itemRef);
       if (docSnap.exists()) {
@@ -128,30 +182,6 @@ export default function Home() {
     }
   };
 
-  // Read items from database
-  useEffect(() => {
-    const q = query(collection(db, "items"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      let itemsArr = [];
-
-      querySnapshot.forEach((doc) => {
-        itemsArr.push({ ...doc.data(), id: doc.id });
-      });
-      setItems(itemsArr);
-
-      // Read total from itemsArr
-      const calculateTotal = () => {
-        const totalPrice = itemsArr.reduce(
-          (sum, item) => sum + parseFloat(item.quantity),
-          0
-        );
-        setTotal(totalPrice);
-      };
-      calculateTotal();
-    });
-    return () => unsubscribe();
-  }, []);
-
   //Handle search and filter items
   const handleSearch = (e) => {
     const query = e.target.value.toLowerCase();
@@ -182,14 +212,22 @@ export default function Home() {
 
   // Delete items from database
   const deleteItem = async (id) => {
-    await deleteDoc(doc(db, "items", id));
+    await deleteDoc(doc(db, "users", user.uid, "items", id));
   };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <ToastContainer />
-        <h1 className="text-4xl p-4 text-center">Pantry Tracker</h1>
+        <div className="justify-between flex flex-row mb-5">
+          <h1 className="text-4xl p-4 text-center">Pantry Tracker</h1>
+          <button
+            className="bg-red-500 px-10 rounded-full"
+            onClick={handleSignOut}
+          >
+            Sign Out
+          </button>
+        </div>
         <div className="bg-blue-800 p-4 rounded-lg">
           <form className="grid grid-cols-6 items-center text-black">
             <input
