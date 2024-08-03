@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase"
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 
 export const signUp = async (email, password) => {
@@ -32,5 +32,15 @@ export const SignOut = async () => {
     } catch (error) {
         console.error('Error signing out' + error)
         throw error;
+    }
+}
+
+export const resetPassword = async (email) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        console.log('Password reset email sent :)')
+    } catch (error) {
+        console.error("Error sending password reset email", error)
+        throw error
     }
 }

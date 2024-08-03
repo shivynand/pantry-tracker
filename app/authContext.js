@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
-import {signUp, signIn, SignOut } from "./auth"
+import {signUp, signIn, SignOut, resetPassword } from "./auth"
 
 const AuthContext = createContext();
 
@@ -17,7 +17,7 @@ export function AuthProvider({children}) {
     }, [])
 
     return (
-        <AuthContext.Provider value = {{ user, signUp, signIn, SignOut }}>
+        <AuthContext.Provider value = {{ user, signUp, signIn, SignOut, resetPassword }}>
             {children}
         </AuthContext.Provider>
     )
