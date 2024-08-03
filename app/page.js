@@ -219,7 +219,6 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <ToastContainer />
-        {console.log(user)}
         <div className="justify-between flex flex-row mb-5">
           <h1 className="text-4xl p-4 text-center">Pantry Tracker</h1>
           <button
